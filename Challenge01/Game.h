@@ -44,6 +44,8 @@ private:
 	Uint32 mTicksCount;
 	// Game should continue to run
 	bool mIsRunning;
+	// Game speed.
+	float mUpdateScalar;
 
 	//// Pong specific
 	//// Direction of paddle
