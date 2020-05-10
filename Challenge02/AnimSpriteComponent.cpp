@@ -23,9 +23,9 @@ void AnimSpriteComponent::Update(float deltaTime)
 		// Wrap current frame if needed
 		while (mCurrFrame >= mAnimTextures.size()) {
 			mCurrFrame -= mAnimTextures.size();
-			// One of the other way
-			//mCurrFrame = Math::Fmod(mAnimTextures.size(), mCurrFrame);
 		}
+		// One of the other way (maybe...)
+		//mCurrFrame = Math::Fmod(mAnimTextures.size(), mCurrFrame);
 
 		// Set the current texture
 		SetTexture(mAnimTextures[static_cast<int>(mCurrFrame)]);

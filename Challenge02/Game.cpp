@@ -3,13 +3,10 @@
 #include <algorithm>
 #include "Actor.h"
 #include "SpriteComponent.h"
-//#include "Ship.h"
-//#include "BGSpriteComponent.h"
+#include "Ship.h"
+#include "BGSpriteComponent.h"
 
-//Minimum target elapsed delta time
-const Uint32 minElapsedMs = 16;
-// Maximum elapsed delta time milliseconds
-const Uint32 maxElapsedMs = 50;
+
 
 Game::Game()
 	:mWindow(nullptr)
@@ -21,7 +18,13 @@ Game::Game()
 
 bool Game::Initialize()
 {
-	mWindow = SDL_CreateWindow("gameprogcppp : Challenge02!", 100, 100, 1024, 768, SDL_WINDOW_MOUSE_FOCUS);
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) != 0) {
+		SDL_Log("Unable to initialize SDL: %s", SDL_GetError());
+		return false;
+	}
+
+	mWindow = SDL_CreateWindow("gameprogcppp : Challenge02!"
+		, 100, 100, WindowW, WindowH, 0);
 	if (!mWindow) {
 		SDL_Log("Failed to create window: %s", SDL_GetError());
 		return false;
@@ -33,9 +36,14 @@ bool Game::Initialize()
 		return false;
 	}
 
-	// TODO: Below this line we define some initializations
-	// Load data.
-	mTickCount = SDL_GetTicks()
+	if (IMG_Init(IMG_INIT_PNG) == 0) {
+		SDL_Log("Failed to create renderer: %s", SDL_GetError());
+		return false;
+	}
+
+	LoadData();
+
+	mTickCount = SDL_GetTicks();
 }
 
 void Game::RunLoop()
@@ -51,6 +59,129 @@ void Game::RunLoop()
 void Game::Shutdown()
 {
 	SDL_Quit();
+}
+
+void Game::ProcessInput()
+{
+	SDL_Event event;
+	while (SDL_PollEvent(&event)) {
+		switch (event.type)
+		{
+		case SDL_QUIT:
+			mIsRunning = false;
+			break;
+		}
+	}
+
+	const Uint8* state = SDL_GetKeyboardState(NULL);
+	if (state[SDL_SCANCODE_ESCAPE])
+	{
+		mIsRunning = false;
+	}
+
+	// Process ship input
+	mShip->ProcessKeyboard(state);
+}
+
+void Game::UpdateGame()
+{
+	// Compute delta time
+	// Wait until 16ms has elapsed since last frame
+	while (SDL_TICKS_PASSED(SDL_GetTicks(), mTickCount + minElapsedMs))
+		;
+
+	float deltaTime = SDL_GetTicks() - mTickCount;
+	if (deltaTime > maxElapsedMs) {
+		deltaTime = maxElapsedMs;
+	}
+	deltaTime *= 0.001f;
+	mTickCount = SDL_GetTicks();
+
+	// Update all actors
+	mUpdatingActors = true;
+	for (auto actor : mActors) {
+		actor->Update(deltaTime);
+	}
+	mUpdatingActors = false;
+
+	// Move any pending actors to mActors
+	for (auto pending : mPendingActors) {
+		mActors.emplace_back(pending);
+	}
+	mPendingActors.clear();
+
+	std::vector<Actor*> deadActors;
+	for (auto actor : mActors) {
+		if (actor->GetState() == Actor::State::EDead) {
+			deadActors.emplace_back(actor);
+		}
+	}
+
+	// Delete dead actors ( which removes them from mActors)
+	for (auto actor : deadActors) {
+		delete actor;
+	}
+}
+
+void Game::GenerateOutput()
+{
+	SDL_SetRenderDrawColor(mRenderer, 0, 0, 0, 255);
+	SDL_RenderClear(mRenderer);
+
+	// Draw all sprite components
+	for (auto sprite : mSprites)
+	{
+		sprite->Draw(mRenderer);
+	}
+	SDL_RenderPresent(mRenderer);
+}
+
+void Game::LoadData()
+{
+	// Create player's ship
+	mShip = new Ship(this);
+	mShip->SetPosition(Vector2(100.0f, 384.0f));
+	mShip->SetScale(1.5f);
+
+	// Create actor for the background ( this doesn't need a subclass)
+	Actor* tmp = new Actor(this);
+	tmp->SetPosition(Vector2(WindowW * 0.5f, WindowH * 0.5f));
+	// Create the "far back" background
+	BGSpriteComponent* bg = new BGSpriteComponent(tmp);
+	bg->SetScreenSize(Vector2(WindowW, WindowH));
+	std::vector<SDL_Texture*> bgtexs = {
+		GetTexture("Assets/Farback01.png"),
+		GetTexture("Assets/Farback02.png")
+	};
+	bg->SetBGTextures(bgtexs);
+	bg->SetScrollSpeed(mFarBGScrollSpeed);
+	// Create the closer background
+	bg = new BGSpriteComponent(tmp, 50);
+	bg->SetScreenSize(Vector2(WindowW, WindowH));
+	bgtexs =
+	{
+		GetTexture("Assets/Stars.png"),
+		GetTexture("Assets/Stars.png")
+	};
+	bg->SetBGTextures(bgtexs);
+	bg->SetScrollSpeed(mFarBGScrollSpeed);
+}
+
+void Game::UnloadData()
+{
+	// Delete actors
+	// Because ~Actor calls RemoveActor, have to use a different style loop
+	while (!mActors.empty())
+	{
+		delete mActors.back();
+	}
+
+	// Destory textures
+	for (auto i : mTextures)
+	{
+		SDL_DestroyTexture(i.second);
+	}
+	mTextures.clear();
 }
 
 void Game::AddActor(Actor* actor)
@@ -102,81 +233,30 @@ void Game::RemoveSprite(SpriteComponent* sprite)
 	mSprites.erase(iter);
 }
 
-SDL_Texture* Game::GetTexture(const string& fileName)
+SDL_Texture* Game::GetTexture(const std::string& fileName)
 {
-	return nullptr;
-}
-
-void Game::ProcessInput()
-{
-	SDL_Event event;
-	while (SDL_PollEvent(&event)) {
-		switch (event.type)
-		{
-		case SDL_QUIT:
-			mIsRunning = false;
-			break;
+	SDL_Texture* tex = nullptr;
+	// Is the texture already in the map?
+	auto iter = mTextures.find(fileName);
+	if (iter != mTextures.end()) {
+		tex = iter->second;
+	}
+	else {
+		// Load from file
+		SDL_Surface* surf = IMG_Load(fileName.c_str());
+		if (!surf) {
+			SDL_Log("Failed to load texture file %s", fileName.c_str());
+			return nullptr;
 		}
-	}
 
-	const Uint8* state = SDL_GetKeyboardState(NULL);
-	if (state[SDL_SCANCODE_ESCAPE])
-	{
-		mIsRunning = false;
-	}
-
-	// Process ship input
-
-}
-
-void Game::UpdateGame()
-{
-	// Compute delta time
-	// Wait until 16ms has elapsed since last frame
-	while (SDL_TICKS_PASSED(SDL_GetTicks(), mTickCount + minElapsedMs))
-		;
-
-	float deltaTime = SDL_GetTicks() - mTickCount;
-	if (deltaTime > maxElapsedMs) {
-		deltaTime = maxElapsedMs;
-	}
-	deltaTime *= 0.001f;
-	mTickCount = SDL_GetTicks();
-
-	// Update all actors
-	mUpdatingActors = true;
-	for (auto actor : mActors) {
-		actor->Update(deltaTime);
-	}
-	mUpdatingActors = false;
-
-	// Move any pending actors to mActors
-	for (auto pending : mPendingActors) {
-		mActors.emplace_back(pending);
-	}
-	mPendingActors.clear();
-
-	vector<Actor*> deadActors;
-	for (auto actor : mActors) {
-		if (actor->GetState() == Actor::State::EDead) {
-			deadActors.emplace_back(actor);
+		// Create texture from surface
+		tex = SDL_CreateTextureFromSurface(mRenderer, surf);
+		SDL_FreeSurface(surf);
+		if (!tex) {
+			SDL_Log("Failed to convert surface to texture for %s", fileName.c_str());
+			return nullptr;
 		}
+
+		mTextures.emplace(fileName.c_str(), tex);
 	}
-
-	// Delete dead actors ( which removes them from mActors)
-	for (auto actor : deadActors) {
-		delete actor;
-	}
-}
-
-void Game::GenerateOutput()
-{
-}
-
-void Game::LoadData()
-{
-}
-
-void Game::UnloadData()
-{
 }

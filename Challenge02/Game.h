@@ -3,7 +3,6 @@
 #include <unordered_map>
 #include<string>
 #include <vector>
-using namespace std;
 
 class Game
 {
@@ -19,7 +18,10 @@ public:
 	void AddSprite(class SpriteComponent* sprite);
 	void RemoveSprite(class SpriteComponent* sprite);
 
-	SDL_Texture* GetTexture(const string& fileName);
+	SDL_Texture* GetTexture(const std::string& fileName);
+
+	static	const Uint32 WindowW = 1024;
+	static	const Uint32 WindowH = 768;
 private:
 	void ProcessInput();
 	void UpdateGame();
@@ -28,15 +30,15 @@ private:
 	void UnloadData();
 
 	// Map of textures loaded
-	unordered_map<string, SDL_Texture*> mTextures;
+	std::unordered_map<std::string, SDL_Texture*> mTextures;
 
 	// All the actors in the game
-	vector<class Actor*> mActors;
+	std::vector<class Actor*> mActors;
 	// Any pending actors
-	vector<class Actor*> mPendingActors;
+	std::vector<class Actor*> mPendingActors;
 
 	// All the sprite components drawn
-	vector<class SpriteComponent*> mSprites;
+	std::vector<class SpriteComponent*> mSprites;
 
 	SDL_Window* mWindow;
 	SDL_Renderer* mRenderer;
@@ -47,5 +49,12 @@ private:
 
 	// Game-specific
 	class Ship* mShip; // Player's ship
+
+	//Minimum target elapsed delta time
+	const Uint32 minElapsedMs = 16;
+	// Maximum elapsed delta time milliseconds
+	const Uint32 maxElapsedMs = 50;
+	const float  mFarBGScrollSpeed = -100.0f;
+	const float mCloserBGScrollSpeed = -200.0f;
 };
 

@@ -48,7 +48,7 @@ private:
 	float mScale;
 	float mRotation;
 
-	std::vector<class Component*> mComponent;
+	std::vector<class Component*> mComponents;
 	class Game* mGame;
 };
 
