@@ -54,9 +54,9 @@ void Ship::ProcessKeyboard(const uint8_t* state)
 	}
 	// up/down
 	if (state[SDL_SCANCODE_W]) {
-		mDownSpeed += moveVec.y;
+		mDownSpeed -= moveVec.y;
 	}
 	if (state[SDL_SCANCODE_S]) {
-		mDownSpeed -= moveVec.y;
+		mDownSpeed += moveVec.y;
 	}
 }

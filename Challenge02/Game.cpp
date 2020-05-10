@@ -87,7 +87,7 @@ void Game::UpdateGame()
 {
 	// Compute delta time
 	// Wait until 16ms has elapsed since last frame
-	while (SDL_TICKS_PASSED(SDL_GetTicks(), mTickCount + minElapsedMs))
+	while (!SDL_TICKS_PASSED(SDL_GetTicks(), mTickCount + minElapsedMs))
 		;
 
 	float deltaTime = SDL_GetTicks() - mTickCount;
@@ -258,5 +258,6 @@ SDL_Texture* Game::GetTexture(const std::string& fileName)
 		}
 
 		mTextures.emplace(fileName.c_str(), tex);
+		return tex;
 	}
 }
