@@ -6,7 +6,7 @@ class SpriteComponent : public Component
 {
 public :
 	// (Lower draw order corresponds with further back)
-	// •`‰æ‡˜‚ª’á‚¢‚Ù‚Ç‰œ‚É•`‰æ‚³‚ê‚é
+	// ï¿½`ï¿½æ‡ï¿½ï¿½ï¿½ï¿½ï¿½á‚¢ï¿½Ù‚Ç‰ï¿½ï¿½É•`ï¿½æ‚³ï¿½ï¿½ï¿½
 	SpriteComponent(class Actor* owner, int drawOrder = 100);
 	~SpriteComponent();
 

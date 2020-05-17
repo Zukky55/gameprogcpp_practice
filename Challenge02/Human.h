@@ -11,7 +11,7 @@ public:
 	
 private:
 	struct Anim {
-		uint32_t
+		uint32_t state;
 	};
 };
 
